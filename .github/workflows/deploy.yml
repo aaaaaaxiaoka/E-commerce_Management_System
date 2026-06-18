@@ -11,11 +11,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with: { node-version: "20", cache: "npm", cache-dependency-path: "**/package-lock.json" }
+        uses: actions/setup-node@v5
+        with: { node-version: "22", cache: "npm", cache-dependency-path: "**/package-lock.json" }
 
       # 前端测试
       - name: Install & Test Client
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

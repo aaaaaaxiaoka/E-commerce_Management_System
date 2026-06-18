@@ -6,3 +6,4 @@ dist/
 .prisma/
 *.db
 *.db-journal
+*.tsbuildinfo
