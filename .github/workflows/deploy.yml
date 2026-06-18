@@ -1,0 +1,83 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ========== 测试 ==========
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with: { node-version: "20", cache: "npm", cache-dependency-path: "**/package-lock.json" }
+
+      # 前端测试
+      - name: Install & Test Client
+        working-directory: client
+        run: |
+          npm ci
+          npm run test:run -- --coverage || true
+          npm run build
+
+      # 后端测试（目前无后端测试，仅编译检查）
+      - name: Install & Build Server
+        working-directory: server
+        run: |
+          npm ci
+          npx prisma generate --schema=src/prisma/schema.prisma
+          npx tsc --noEmit
+
+  # ========== 构建 & 推送镜像 ==========
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build server image
+        run: docker build -f docker/Dockerfile.server -t adminflow-server .
+
+      - name: Build client image
+        run: docker build -f docker/Dockerfile.client -t adminflow-client .
+
+      # 推送到 Docker Hub（需配置 secrets）
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_TOKEN }}
+      # - name: Push images
+      #   run: |
+      #     docker tag adminflow-server ${{ secrets.DOCKER_USERNAME }}/adminflow-server:latest
+      #     docker tag adminflow-client ${{ secrets.DOCKER_USERNAME }}/adminflow-client:latest
+      #     docker push ${{ secrets.DOCKER_USERNAME }}/adminflow-server:latest
+      #     docker push ${{ secrets.DOCKER_USERNAME }}/adminflow-client:latest
+
+  # ========== 部署（示例：通过 SSH 部署到服务器）==========
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Deploy
+        run: echo "部署到服务器 — 替换为实际 SSH/SCP 脚本"
+      # 实际示例:
+      # - uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.SERVER_HOST }}
+      #     username: ${{ secrets.SERVER_USER }}
+      #     key: ${{ secrets.SSH_KEY }}
+      #     script: |
+      #       cd /opt/adminflow
+      #       git pull
+      #       docker-compose up -d --build

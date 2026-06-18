@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ========== 认证 & 权限 ==========
+
+model User {
+  id           Int        @id @default(autoincrement())
+  username     String     @unique
+  email        String     @unique
+  password     String
+  avatar       String?
+  phone        String?
+  nickname     String?
+  realName     String?
+  idNumber     String?
+  gender       Int        @default(0) // 0=未知 1=男 2=女
+  birthday     DateTime?
+  province     String?
+  city         String?
+  district     String?
+  status       Int        @default(1) // 1=正常 0=禁用
+  roles        UserRole[]
+  orders       Order[]
+  addresses    Address[]
+  refreshToken String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique // admin, editor, guest
+  label       String           // 管理员, 编辑, 访客
+  status      Int              @default(1)
+  permissions RolePermission[]
+  users       UserRole[]
+  menus       RoleMenu[]
+  createdAt   DateTime         @default(now())
+}
+
+model Permission {
+  id    Int              @id @default(autoincrement())
+  code  String           @unique // product:create, order:delete
+  name  String
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+}
+
+model Menu {
+  id         Int        @id @default(autoincrement())
+  parentId   Int?       // 父菜单 ID，null 表示一级菜单
+  name       String
+  path       String?    // 前端路由路径
+  icon       String?
+  sort       Int        @default(0)
+  hidden     Boolean    @default(false)
+  permission String?    // 绑定的权限码
+  roles      RoleMenu[]
+  parent     Menu?      @relation("MenuTree", fields: [parentId], references: [id])
+  children   Menu[]     @relation("MenuTree")
+  createdAt  DateTime   @default(now())
+}
+
+model RoleMenu {
+  roleId Int
+  menuId Int
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  menu   Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  @@id([roleId, menuId])
+}
+
+// ========== 业务 ==========
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String
+  parentId  Int?
+  sort      Int        @default(0)
+  status    Int        @default(1)
+  products  Product[]
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  createdAt DateTime   @default(now())
+}
+
+model Product {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float       // SQLite 无 Decimal，用 Float
+  stock       Int         @default(0)
+  images      String      @default("[]") // JSON 字符串存储图片数组
+  status      Int         @default(1) // 1=上架 0=下架
+  categoryId  Int?
+  category    Category?   @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  orderNo     String      @unique
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id])
+  totalAmount Float       // 总金额
+  status      Int         @default(1) // 1=待付款 2=待发货 3=待收货 4=已完成 5=已取消
+  address     String      @default("{}") // JSON 字符串: { name, phone, province, city, detail }
+  remark      String?
+  items       OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float   // 下单时的单价
+}
+
+model Address {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String
+  province  String
+  city      String
+  district  String
+  detail    String
+  zipCode   String?
+  tag       String?  @default("home") // home, work, school, other
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
