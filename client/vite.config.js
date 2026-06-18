@@ -1,7 +1,9 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import path from "path";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { visualizer } from "rollup-plugin-visualizer";
+var __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
     plugins: [
         react(),
@@ -29,21 +31,28 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 // 精细代码分割
-                manualChunks: {
-                    vendor: ["react", "react-dom", "react-router-dom"],
-                    antd: ["antd", "@ant-design/icons"],
-                    echarts: ["echarts", "echarts-for-react"],
-                    i18n: ["i18next", "react-i18next"],
+                manualChunks: function (id) {
+                    if (id.includes("node_modules")) {
+                        if (id.includes("react-dom") || id.includes("react-router") || id.includes("/react/"))
+                            return "vendor";
+                        if (id.includes("@ant-design") || id.includes("antd"))
+                            return "antd";
+                        if (id.includes("echarts"))
+                            return "echarts";
+                        if (id.includes("i18next") || id.includes("react-i18next"))
+                            return "i18n";
+                    }
                 },
             },
         },
         // 生产环境移除 console
-        minify: "terser",
-        terserOptions: {
-            compress: { drop_console: true, drop_debugger: true },
-        },
+        minify: "esbuild",
         // 资源内联阈值
         assetsInlineLimit: 4096,
+    },
+    // 生产环境移除 console/debugger
+    esbuild: {
+        drop: ["console", "debugger"],
     },
     // Vitest 配置
     test: {
